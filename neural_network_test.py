@@ -60,7 +60,7 @@ class NN:
     inputlayer_size = 2
     hiddenlayer_size = 0
     outputlayer_size = 1
-    eta = 0.01
+    eta = 0.001
 
     def __init__(self, cost, sigmoid):
         #np.random.seed(7)
@@ -118,20 +118,21 @@ class Plot3D:
 nn = NN(SqrCost, Sigmoid)
 graf = Plot3D()
 
-number_of_batches = 1000
-batch_size = 100
+number_of_batches = 100
+batch_size = 10
 cost = list()
 ukupno = list()
 for i in range(number_of_batches):
     examples = np.empty((batch_size, 3))
     for j in range(batch_size):
-        examples[j] = generate_example()
-        ukupno.append(examples[j])
+        primjer = generate_example()
+        examples[j] = primjer
+        ukupno.append(primjer)
     cijena = nn.process_input_batch(examples[:, :2], examples[:, 2])
     cost.append(cijena)
     #graf.draw(nn.weights)
 
-    if i % 100 == 0:
+    if i % 10 == 0:
         print(i, nn.weights, )
 
 matplotlib.interactive(False)
@@ -163,11 +164,11 @@ plt.plot(brojevi, [fun0(i) for i in brojevi])
 plt.plot(brojevi, [fun1(i) for i in brojevi])
 plt.axes().set_aspect('equal')
 plt.axis((lower, upper, lower, upper))
-"""
+
 for i in ukupno:
     if i[2] == 0:
         plt.scatter(i[0], i[1], c=1)
     else:
         plt.scatter(i[0], i[1], c=6)
-"""
+
 plt.show()
