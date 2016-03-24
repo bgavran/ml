@@ -1,33 +1,4 @@
 import numpy as np
-import math
-import random
-from decimal import Decimal
-
-
-def fun0(x):
-    return math.cos(x*3)/2 - 0.3  # + 17**(x - 0.7 + abs(x - 0.7)) - 1
-
-
-def fun1(x):
-    return math.cos(x*3)/2 + 0.3  # + 17**(x - 0.5 + abs(x - 0.5)) - 1 #,, 2**(x*2) - 2
-
-
-def generate_examplev2():
-    x = random.random() * 2 - 1
-    y = random.random() * 2 - 1
-    if x**2 + y**2 <= 0.25:
-        return[np.array([x, y]), np.array([1, 0])]
-    else:
-        return[np.array([x, y]), np.array([0, 1])]
-
-
-def generate_example():
-    koja_funkcija = random.random()
-    x = random.random() * 2 - 1
-    if koja_funkcija > 0.5:
-        return [np.array([x, fun0(x)]), np.array([1, 0])]
-    else:
-        return [np.array([x, fun1(x)]), np.array([0, 1])]
 
 
 class Sigmoid:
