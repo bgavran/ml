@@ -2,37 +2,40 @@ from utils import *
 
 
 class NN:
-    def __init__(self, architecture, cost, sigmoid, eta):
+    def __init__(self, architecture, cost, sigmoid, eta, observers=()):
         # np.random.seed(9)
-        # TODO dodat opciju definiranja da li su output klase mutually exclusive? odnosno da li ce se koristit softmax
-        # TODO define the use and scope of class variables and class method arguments
-        # TODO add asserts
+
+        self._observers = observers
         self.architecture = architecture
         self.eta = eta
         self.depth = len(architecture)
         self.cost = cost
-        self.sigmoid = sigmoid
-        self.weights = [0.1 * np.random.randn(n + 1, m) for n, m in zip(self.architecture[:], self.architecture[1:])]
-        self.z = [np.ones(i) for i in self.architecture]
+        self.activation = sigmoid
+        self.weights = [(np.random.rand(n + 1, m) - 0.5) / np.sqrt(n) for n, m in
+                        zip(self.architecture[:], self.architecture[1:])]
+        # self.bias = [(np.random.rand(1, n) - 0.5)/ np.sqrt(n) for n in self.architecture[:-1]]
+        self.z = [None for _ in self.architecture]
+        self.a = [None for _ in self.architecture]
         self.batch_size = 0
+
+    def notify(self, *args):
+        for obs in self._observers:
+            obs.update(self, *args)
 
     def train_on_input_batch(self, input_batch, y):
         assert len(input_batch) == len(y)
-        gradient = [np.zeros(i.shape) for i in self.weights]
 
         self.batch_size = len(input_batch)
-        self.z = self.forward_pass_batch(input_batch)
+        self.forward_pass_batch(input_batch)
 
         delta = self.calc_delta(y)  # calculates all deltas
-        gradient = self.calc_gradient(gradient, delta)  # calculates all gradients
+        gradient = self.calc_gradient(delta)  # calculates all gradients
         cost = self.calc_cost(y)
-
-        cost /= len(input_batch)
-        gradient = [i / len(input_batch) for i in gradient]
 
         # self.gradient_check(input_batch, gradient, y)
 
-        self.weights = [item - self.eta * gradient[i] for i, item in enumerate(self.weights)]
+        for w, g in zip(self.weights, gradient):
+            w -= self.eta * g
         return cost
 
     def gradient_check(self, input_batch, gradient, y):
@@ -45,24 +48,25 @@ class NN:
                 for k in range(yy):
                     med = self.weights[i][j, k]
                     self.weights[i][j, k] = med + eps
-                    z_uppercost = self.forward_pass_batch(input_batch)
+                    outputs_upper = copy.deepcopy(self.forward_pass_batch(input_batch))
                     self.weights[i][j, k] = med - eps
-                    z_lowercost = self.forward_pass_batch(input_batch)
+                    outputs_lower = copy.deepcopy(self.forward_pass_batch(input_batch))
                     self.weights[i][j, k] = med
 
-                    cost_upper = np.sum(self.cost.f(z_uppercost[-1], y))
-                    cost_lower = np.sum(self.cost.f(z_lowercost[-1], y))
+                    cost_upper = np.sum(self.cost.f(outputs_upper[-1], y))
+                    cost_lower = np.sum(self.cost.f(outputs_lower[-1], y))
                     weights_grad[i][j, k] = (cost_upper - cost_lower) / (2 * eps * len(input_batch))
-        for i in self.weights:
-            print(i)
 
-        print("numerical estimation:")
-        for i in weights_grad:
-            print(i)
-
-        print("backprop:")
-        for i in gradient:
-            print(i)
+        # for i in self.weights:
+        #     print(i)
+        #
+        # print("numerical estimation:")
+        # for i in weights_grad:
+        #     print(i)
+        #
+        # print("backprop:")
+        # for i in gradient:
+        #     print(i)
 
         print("Difference:")
         for i in range(len(gradient)):
@@ -72,28 +76,25 @@ class NN:
         # input()
 
     def calc_cost(self, y):
-        return np.sum([i for i in self.cost.f(self.z[-1], y)])
+        return np.mean(self.cost.f(self.a[-1], y))
 
     def calc_delta(self, y, **kwargs):
         w = kwargs.get("w", self.weights)
         z = kwargs.get("z", self.z)
-        # TODO change delta to its more complex form:
-        delta = [0 for _ in range(self.depth)]
-        delta[-1] = self.z[-1] - y
+        delta = [None for _ in range(self.depth)]
+        delta[-1] = self.cost.df(self.a[-1], y) * self.activation.df(z[-1])
         for l in reversed(range(1, self.depth - 1)):  # Update deltas in the reverse order
-            delta[l] = np.dot(delta[l + 1], w[l].T)[:, :-1] * self.sigmoid.df(-np.log(1 / z[l] - 1))
+            delta[l] = (delta[l + 1] @ w[l].T)[:, :-1] * self.activation.df(z[l])
         return delta
 
-    def calc_gradient(self, gradient, delta):
-        promjena = list()
+    def calc_gradient(self, delta):
+        gradient = []
         for layer in range(self.depth - 1):
-            promjena.append(np.sum([
-                                       np.dot(np.concatenate([self.z[layer][j], [1]])[np.newaxis].T,
-                                              delta[layer + 1][j][np.newaxis])
-                                       for j in range(self.batch_size)
-                                       ], axis=0))
-        for i in range(len(gradient)):
-            gradient[i] += promjena[i]
+            gradient.append(np.mean([
+                                        (np.concatenate([self.a[layer][j], [1]])[np.newaxis].T @
+                                         delta[layer + 1][j][np.newaxis])
+                                        for j in range(self.batch_size)
+                                        ], axis=0))
 
         return gradient
 
@@ -105,8 +106,9 @@ class NN:
         """
         w = kwargs.get("w", self.weights)
         n = len(input_batch)
-        z = [input_batch]
+        self.a[0] = self.z[0] = input_batch
         for i in range(self.depth - 1):  # last layer is softmax
-            z.append(self.sigmoid.f(np.dot(np.c_[z[-1], np.ones(n)], w[i])))
+            self.z[i + 1] = np.c_[self.a[i], np.ones(n)] @ w[i]
+            self.a[i + 1] = self.activation.f(self.z[i + 1])
         # z.append(SoftMax.f(np.dot(np.c_[z[-1], np.ones(n)], w[-1])))
-        return z
+        return self.a
