@@ -2,14 +2,14 @@ from models import *
 from observers import *
 from dataset import *
 
-architecture = (2, 2, 2)
+architecture = (2, 6, 2)
 eta = 10
 n_batches = 1000
 batch_size = 100
 
 nn = NN(architecture, CrossEntropyCost, Sigmoid, eta,
         observers=[ConsoleOutput(), NetworkOutput(n_graphs=1, plot_cost=True)])
-tw = Data(TwoLines)
+tw = Data(Circle)
 
 div = 5
 for i, (batch_x, batch_y) in enumerate(tw.next_batch(n_batches, batch_size)):
