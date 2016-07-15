@@ -70,8 +70,11 @@ class NN:
 
         print("Difference:")
         for i in range(len(gradient)):
-            print(np.absolute((weights_grad[i] - gradient[i])) / (
-                np.maximum(np.absolute(weights_grad[i]), np.absolute(gradient[i]))))
+            weights_grad[i] = np.absolute((weights_grad[i] - gradient[i])) / (
+                np.maximum(np.absolute(weights_grad[i]), np.absolute(gradient[i])))
+
+        for weights in weights_grad:
+            print(np.mean(weights))
         print("")
         # input()
 
